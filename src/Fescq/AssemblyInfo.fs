@@ -4,20 +4,20 @@ open System.Reflection
 
 [<assembly: AssemblyTitleAttribute("Fescq")>]
 [<assembly: AssemblyProductAttribute("Fescq")>]
-[<assembly: AssemblyVersionAttribute("0.1.1")>]
+[<assembly: AssemblyVersionAttribute("0.2.0")>]
 [<assembly: AssemblyMetadataAttribute("ReleaseDate","2020-02-23T00:00:00.0000000-06:00")>]
-[<assembly: AssemblyFileVersionAttribute("0.1.1")>]
-[<assembly: AssemblyInformationalVersionAttribute("0.1.1")>]
+[<assembly: AssemblyFileVersionAttribute("0.2.0")>]
+[<assembly: AssemblyInformationalVersionAttribute("0.2.0")>]
 [<assembly: AssemblyMetadataAttribute("ReleaseChannel","release")>]
-[<assembly: AssemblyMetadataAttribute("GitHash","7ced27549395c1af5e2227ea631300113b7c1aba")>]
+[<assembly: AssemblyMetadataAttribute("GitHash","fd7eb57558d917d6399e87434a9243e394a50aff")>]
 do ()
 
 module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyTitle = "Fescq"
     let [<Literal>] AssemblyProduct = "Fescq"
-    let [<Literal>] AssemblyVersion = "0.1.1"
+    let [<Literal>] AssemblyVersion = "0.2.0"
     let [<Literal>] AssemblyMetadata_ReleaseDate = "2020-02-23T00:00:00.0000000-06:00"
-    let [<Literal>] AssemblyFileVersion = "0.1.1"
-    let [<Literal>] AssemblyInformationalVersion = "0.1.1"
+    let [<Literal>] AssemblyFileVersion = "0.2.0"
+    let [<Literal>] AssemblyInformationalVersion = "0.2.0"
     let [<Literal>] AssemblyMetadata_ReleaseChannel = "release"
-    let [<Literal>] AssemblyMetadata_GitHash = "7ced27549395c1af5e2227ea631300113b7c1aba"
+    let [<Literal>] AssemblyMetadata_GitHash = "fd7eb57558d917d6399e87434a9243e394a50aff"
