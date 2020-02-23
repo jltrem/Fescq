@@ -1,6 +1,10 @@
 # Fescq
 
-[Enter useful description for Fescq]
+F# / Event Store / Command & Query
+
+pronounce it like [fescue, the grass](https://aggieturf.tamu.edu/texas-turfgrasses/tall-fescue/)
+
+under development!
 
 ---
 
