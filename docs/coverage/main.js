@@ -224,7 +224,7 @@ var assemblies = [
   {
     "name": "Fescq",
     "classes": [
-      { "name": "Fescq.Say", "rp": "Fescq_Say.htm", "cl": 4, "ucl": 0, "cal": 4, "tl": 58, "ct": "LineCoverage", "mc": "-", "cb": 0, "tb": 0, "lch": [], "bch": [], "hc": [] },
+      { "name": "Fescq.Say", "rp": "Fescq_Say.htm", "cl": 3, "ucl": 1, "cal": 4, "tl": 58, "ct": "LineCoverage", "mc": "-", "cb": 0, "tb": 0, "lch": [], "bch": [], "hc": [] },
       { "name": "System.AssemblyVersionInformation", "rp": "Fescq_AssemblyVersionInformation.htm", "cl": 0, "ucl": 0, "cal": 0, "tl": 0, "ct": "MethodCoverage", "mc": "-", "cb": 0, "tb": 0, "lch": [], "bch": [], "hc": [] },
     ]},
 ];
