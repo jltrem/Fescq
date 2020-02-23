@@ -1,22 +1,22 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net461</TargetFrameworks>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
-  <PropertyGroup>
-    <Title>Fescq</Title>
-    <Description>Fescq does the thing!</Description>
-
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Library.fs" />
+    <Compile Include="Core.fs" />
+    <Compile Include="Command.fs" />
+    <Compile Include="CommandBus.fs" />
+    <Compile Include="Aggregate.fs" />
+    <Compile Include="Repository.fs" />
+    <Compile Include="CommandHandler.fs" />
+    <Compile Include="EventRegistry.fs" />
+    <Compile Include="EventStore.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
