@@ -1,11 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+- added Repository.LoadExpectedVersion
+- removed miniscaffold library.fs + tests
+
 ## [0.2.1] - 2020-02-23
 
 ### Added
 - added project description
-
-### Fixed
 
 ## [0.2.0] - 2020-02-23
 
