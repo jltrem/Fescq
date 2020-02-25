@@ -27,6 +27,11 @@ namespace NetCoreWebApp
          services.AddControllersWithViews();
 
          services.AddDbContext<Storage.AppDbContext>(x => x.UseSqlServer(Configuration["ConnectionStrings:FescqSQL"]));
+
+         services.AddSingleton<Storage.CrmEventRegistry>();
+         services.AddScoped<Storage.CrmEventStoreProvider>();
+         services.AddScoped<Fescq.IRepository<CrmDomain.Aggregate.Contact.Contact>>(x => new Fescq.Repository<CrmDomain.Aggregate.Contact.Contact>(x.GetService<Fescq.IEventStore>()));
+
       }
 
       // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
