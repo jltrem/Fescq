@@ -48,10 +48,14 @@ type EventTypeInfo = {
    DataType: Type
 }
 
-type EntityState<'t> = {
+type EntityState<'entity> = {
    Version: int
-   Entity: 't
+   Entity: 'entity
 }
+
+module EntityState =
+   let create entity = { Entity=entity; Version=1 }
+   let update entity event = { Entity=entity; Version=event.AggregateKey.Version }
 
 type ApplyAction<'entity> =
 | Create of Event

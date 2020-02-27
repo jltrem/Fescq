@@ -107,7 +107,7 @@ let create (e:Event) =
    | ContactEvent.Created data ->
       { Name = data.Name
         Phones = []|> Map }
-      |> fun contact -> { Entity=contact; Version = 1 } |> Ok
+      |> fun contact -> Ok (EntityState.create contact)
    | _ -> (sprintf "unexpected event for create: %A" e.EventData) |> Error
 
 
@@ -137,7 +137,7 @@ let update (state:EntityState<Contact>) (e:Event) =
             Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
 
    match update with
-   | Ok entity -> Ok { Entity=entity; Version=e.AggregateKey.Version }
+   | Ok contact -> Ok (EntityState.update contact e)
    | Error err -> Error err
 
 
