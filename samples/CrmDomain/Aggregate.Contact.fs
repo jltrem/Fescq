@@ -102,40 +102,47 @@ let validateEventData (eventData:IEventData) =
    | _ -> failwith "unsupported event type"
 
 
-let apply (state:(int*Contact) option) (e:Event) =
+let create (e:Event) =
+   match validateEventData e.EventData with
+   | ContactEvent.Created data ->
+      { Name = data.Name
+        Phones = []|> Map }
+      |> fun contact -> { Entity=contact; Version = 1 } |> Ok
+   | _ -> (sprintf "unexpected event for create: %A" e.EventData) |> Error
 
-   let entity () =
-      match state with 
-      | Some (_, value) -> value
-      | None -> failwith "state was None for update"
 
-   let version = 
-      match state with 
-      | Some (value, _) -> value
-      | None -> 1
+let update (state:EntityState<Contact>) (e:Event) =
+
+   let prev = state.Entity
 
    let update = 
       match validateEventData e.EventData with    
    
-      | ContactEvent.Created data -> 
-         match state with 
-         | None -> { Name = data.Name; Phones = []|> Map }
-         | Some _ -> failwith "state was Some for create"
+      | ContactEvent.Created _ ->
+         Error "update called with created event"
 
       | ContactEvent.Renamed data -> 
-         { entity() with Name = data.Name }
+         Ok { prev with Name = data.Name }
 
       | ContactEvent.PhoneAdded data -> 
-         let prev = entity()
-         if prev.Phones.ContainsKey(data.PhoneId) then failwith "ContactPhoneAdded: id already exists"
-         { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+         if prev.Phones.ContainsKey(data.PhoneId) then
+            Error "ContactPhoneAdded: id already exists"
+         else
+            Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
 
       | ContactEvent.PhoneUpdated data -> 
-         let prev = entity()
-         if not(prev.Phones.ContainsKey(data.PhoneId)) then failwith "ContactPhoneUpdated: id does not exist"
-         { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+         if not(prev.Phones.ContainsKey(data.PhoneId)) then
+            Error "ContactPhoneUpdated: id does not exist"
+         else 
+            Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
 
-   Some (version, update)
+   match update with
+   | Ok entity -> Ok { Entity=entity; Version=e.AggregateKey.Version }
+   | Error err -> Error err
+
+
+let apply = Aggregate.makeApplyFunc create update
+
 
 module Handle =
 

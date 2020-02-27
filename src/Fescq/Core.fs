@@ -47,3 +47,15 @@ type EventTypeInfo = {
    Version: int
    DataType: Type
 }
+
+type EntityState<'t> = {
+   Version: int
+   Entity: 't
+}
+
+type ApplyAction<'entity> =
+| Create of Event
+| Update of EntityState<'entity> * Event
+
+type ApplyEvent<'entity> = ApplyAction<'entity> -> Result<EntityState<'entity>, string>
+

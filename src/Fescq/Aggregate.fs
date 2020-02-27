@@ -1,9 +1,6 @@
 module Fescq.Aggregate
 
 
-// State is a (version, entity) pair
-type ApplyEvent<'entity> = (int*'entity) option -> Event -> (int*'entity) option
-
 /// Apply all events with the provided folder function.
 /// This function must validate domain rules so that construction
 /// is successful IFF the state is valid
@@ -29,14 +26,30 @@ let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Eve
       |> List.last
       |> fun x -> x.AggregateKey
 
+   let folder (state:Result<EntityState<'entity>, string> option) (event:Event) =
+
+      let newState = 
+         match state with
+         | None -> event |> Create |> apply 
+         | Some result -> 
+            match result with
+            | Ok x -> (x, event) |> Update |> apply
+            | Error _ -> result
+
+      newState |> Some      
+      
+
    events
-   |> List.fold apply None
+   |> List.fold folder None
    |> function
-      | None -> failwith "unexpected failure during create"
+      | None -> failwith "unexpected failure during create (None)"
       | Some result ->
-      { Key = key
-        Entity = snd result
-        History = events }
+         match result with
+         | Error err -> failwith err
+         | Ok state -> 
+            { Key = key
+              Entity = state.Entity
+              History = events }
       |> fun agg -> (agg, future)
 
 
@@ -51,3 +64,10 @@ let createWithNextEvent<'entity> (apply:ApplyEvent<'entity>) (history:Event list
 let createFromHistory<'entity> (apply:ApplyEvent<'entity>) (history:Event list) =
    create apply history []
 
+
+let makeApplyFunc<'entity> create update : ApplyEvent<'entity> =
+
+   fun (action:ApplyAction<'entity>) ->
+      match action with
+      | Create e -> create e
+      | Update (s, e) -> update s e
