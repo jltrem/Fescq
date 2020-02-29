@@ -1,4 +1,4 @@
-namespace Fescq
+module Fescq.Core
 
 open System;
 
@@ -37,11 +37,6 @@ type IEventStore =
    abstract member Save : unit -> Result<unit, string>
 
 
-type EventRegistry = private {
-   RevisionTypeMap: Map<string, Type>
-   TypeRevisionMap: Map<string, struct (string*int)>
-}
-
 type EventTypeInfo = {
    Name: string
    Version: int
@@ -63,3 +58,7 @@ type ApplyAction<'entity> =
 
 type ApplyEvent<'entity> = ApplyAction<'entity> -> Result<EntityState<'entity>, string>
 
+type RegisteredEvents = {
+   RevisionTypeMap: Map<string, Type>
+   TypeRevisionMap: Map<string, struct (string*int)>
+}

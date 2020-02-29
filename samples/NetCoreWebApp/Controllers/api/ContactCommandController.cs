@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 using LanguageExt;
 using static LanguageExt.Prelude;
 using static LanguageExt.FSharp;
-using Fescq;
-using ES = Fescq.EventStoreCSharp;
+using static Fescq.Core;
+using ES = Fescq.CSharp.Idiomatic;
 using NetCoreWebApp.Models.ContactCommandModels;
 
 namespace NetCoreWebApp.Controllers.api
@@ -38,11 +38,11 @@ namespace NetCoreWebApp.Controllers.api
 
          if (events.Length == 1)
          {
-            var (ok, error) = ES.AddEvent(_eventStore, events[0]);
+            var (ok, error) = ES.Storage.AddEvent(_eventStore, events[0]);
             return fs(ok).Match(
                Some: _ =>
                {
-                  ES.Save(_eventStore);
+                  ES.Storage.Save(_eventStore);
                   return CreatedAtAction(nameof(GetAggregate), new { aggregateId = aggregate.Key.Id }, null);
                },
                None: () => BadRequest(fs(error).IfNone("unknown error")) as ActionResult);
@@ -109,7 +109,7 @@ namespace NetCoreWebApp.Controllers.api
             Converters = new List<Newtonsoft.Json.JsonConverter> { new Newtonsoft.Json.Converters.StringEnumConverter() }
          };
 
-      private async Task<ActionResult> UpdateAsync(Guid aggregateId, Command.UpdateCommand cmd) =>
+      private async Task<ActionResult> UpdateAsync(Guid aggregateId, Fescq.Command.UpdateCommand cmd) =>
          await Task.Run(() =>
          {
             // TODO: move this ugliness to CrmDomain & only deal with the HTTP response here

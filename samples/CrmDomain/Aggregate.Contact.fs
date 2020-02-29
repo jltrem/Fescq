@@ -1,7 +1,8 @@
 module CrmDomain.Aggregate.Contact
 
 open System
-open Fescq
+open Fescq.Core
+open Fescq.Repository
 open CrmDomain
 
 type Contact = {
@@ -9,6 +10,9 @@ type Contact = {
    Phones: Map<Guid, PhoneNumber> 
 }
 
+(*
+   COMMANDS
+*)
 
 type CreateContact (name:PersonalName) =
    inherit Fescq.Command.CreateAggregateCommand()
@@ -64,6 +68,10 @@ let validateCommand (command:Fescq.Command.ICommand) =
    | _ -> failwith "unexpected command"
 
 
+(*
+   EVENTS
+*)
+
 [<EventData("contact-created", 1)>]
 type ContactCreated (name:PersonalName) = 
    interface IEventData
@@ -102,51 +110,54 @@ let validateEventData (eventData:IEventData) =
    | _ -> failwith "unsupported event type"
 
 
-let create (e:Event) =
-   match validateEventData e.EventData with
-   | ContactEvent.Created data ->
-      { Name = data.Name
-        Phones = []|> Map }
-      |> fun contact -> Ok (EntityState.create contact)
-   | _ -> (sprintf "unexpected event for create: %A" e.EventData) |> Error
+
+let private applyContactEvent =
+
+   let create (e:Event) =
+      match validateEventData e.EventData with
+      | ContactEvent.Created data ->
+         { Name = data.Name
+           Phones = []|> Map }
+         |> fun contact -> Ok (EntityState.create contact)
+      | _ -> (sprintf "unexpected event for create: %A" e.EventData) |> Error
 
 
-let update (state:EntityState<Contact>) (e:Event) =
+   let update (state:EntityState<Contact>) (e:Event) =
 
-   let prev = state.Entity
+      let prev = state.Entity
 
-   let update = 
-      match validateEventData e.EventData with    
-   
-      | ContactEvent.Created _ ->
-         Error "update called with created event"
+      let update = 
+         match validateEventData e.EventData with    
 
-      | ContactEvent.Renamed data -> 
-         Ok { prev with Name = data.Name }
+         | ContactEvent.Created _ ->
+            Error "update called with created event"
 
-      | ContactEvent.PhoneAdded data -> 
-         if prev.Phones.ContainsKey(data.PhoneId) then
-            Error "ContactPhoneAdded: id already exists"
-         else
-            Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+         | ContactEvent.Renamed data -> 
+            Ok { prev with Name = data.Name }
 
-      | ContactEvent.PhoneUpdated data -> 
-         if not(prev.Phones.ContainsKey(data.PhoneId)) then
-            Error "ContactPhoneUpdated: id does not exist"
-         else 
-            Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+         | ContactEvent.PhoneAdded data -> 
+            if prev.Phones.ContainsKey(data.PhoneId) then
+               Error "ContactPhoneAdded: id already exists"
+            else
+               Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
 
-   match update with
-   | Ok contact -> Ok (EntityState.update contact e)
-   | Error err -> Error err
+         | ContactEvent.PhoneUpdated data -> 
+            if not(prev.Phones.ContainsKey(data.PhoneId)) then
+               Error "ContactPhoneUpdated: id does not exist"
+            else 
+               Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+
+      match update with
+      | Ok contact -> Ok (EntityState.update contact e)
+      | Error err -> Error err
 
 
-let apply = Aggregate.makeApplyFunc create update
+   Fescq.Aggregate.makeApplyFunc create update
 
 
 module Handle =
 
-   let aggId (command:Command.ICommand) =
+   let aggId (command:Fescq.Command.ICommand) =
       command.AggregateId
 
    let create utcNow metaData (command:CreateContact) =
@@ -162,7 +173,7 @@ module Handle =
          MetaData = metaData
          EventData = ContactCreated(command.Name) 
       }
-      |> Aggregate.createWithFirstEvent apply
+      |> Fescq.Aggregate.createWithFirstEvent applyContactEvent
 
    
    let update utcNow metaData (command:Fescq.Command.ICommand) (aggregate:Agg<Contact>) =
@@ -186,7 +197,7 @@ module Handle =
                  Timestamp = utcNow
                  MetaData = metaData
                  EventData = eventData }
-               |> Aggregate.createWithNextEvent apply aggregate.History 
+               |> Fescq.Aggregate.createWithNextEvent applyContactEvent aggregate.History 
                |> Ok
             else 
                Error "aggregate and command refer to different ids"
@@ -205,7 +216,7 @@ module Storage =
 
    let private factory history = 
       try
-         let (agg, _) = Aggregate.createFromHistory<Contact> apply history
+         let (agg, _) = Fescq.Aggregate.createFromHistory<Contact> applyContactEvent history
          Ok agg
       with 
          ex -> Error ex.Message

@@ -1,5 +1,6 @@
 module Fescq.Aggregate
 
+open Core
 
 /// Apply all events with the provided folder function.
 /// This function must validate domain rules so that construction

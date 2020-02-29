@@ -6,7 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="Validate.fs" />
     <Compile Include="Aggregate.Contact.fs" />
   </ItemGroup>
 

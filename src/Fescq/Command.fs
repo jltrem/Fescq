@@ -1,10 +1,10 @@
 module Fescq.Command
 
-open Fescq
 open System
 open System.Reactive.Subjects
 open System.Reactive.Linq;
 open FSharpx.Control.Observable
+open Fescq.Core
 
 type AsyncValue<'t> () =
    let subject = new ReplaySubject<'t>()

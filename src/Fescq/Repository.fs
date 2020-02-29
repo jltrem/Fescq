@@ -1,7 +1,7 @@
-namespace Fescq
+module Fescq.Repository
 
 open System
-open Fescq.Aggregate
+open Core
 
 type IRepository<'t> =
 

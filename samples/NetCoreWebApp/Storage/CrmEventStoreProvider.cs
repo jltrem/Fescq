@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using LanguageExt;
 using Newtonsoft.Json;
-using Fescq;
 using Microsoft.FSharp.Core;
 using static LanguageExt.FSharp;
+using static Fescq.Core;
+using static Fescq.EventStore;
 
 
 namespace NetCoreWebApp.Storage

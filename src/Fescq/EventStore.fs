@@ -1,13 +1,14 @@
-namespace Fescq
+module Fescq.EventStore
 
 open System
-open EventRegistryFuncs
+open Fescq.EventRegistry
+open Core
 
 type DtoTypeProvider = System.Func<string, int, Type option>
 type GetEvents = System.Func<DtoTypeProvider, Guid, seq<Event>>
 type AddEvent = System.Action<Event, struct (string * int), Type>
 
-type EventStore (registry:EventRegistry, getEvents:GetEvents, addEvent:AddEvent, save:Action) =
+type EventStore (registry:RegisteredEvents, getEvents:GetEvents, addEvent:AddEvent, save:Action) =
    interface IEventStore with
 
       member x.GetEvents aggregateId : Result<Event list, string> =
@@ -40,25 +41,4 @@ type EventStore (registry:EventRegistry, getEvents:GetEvents, addEvent:AddEvent,
             Ok ()
          with
             ex -> Error ex.Message
-
-
-module EventStoreCSharp =
-
-   let GetEvents (eventStore:IEventStore, aggId:Guid) =
-      eventStore.GetEvents aggId
-      |> function
-         | Ok events -> struct (Some events, None)
-         | Error msg -> struct (None, Some msg)
-
-   let AddEvent (eventStore:IEventStore, event:Event) =
-      eventStore.AddEvent event
-      |> function
-         | Ok _ -> struct (Some 1, None)
-         | Error msg -> struct (None, Some msg)
-
-   let Save (eventStore:IEventStore) =
-      eventStore.Save ()
-      |> function
-         | Ok ok -> struct (Some ok, None)
-         | Error msg -> struct (None, Some msg)
 
