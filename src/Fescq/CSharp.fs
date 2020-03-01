@@ -1,4 +1,4 @@
-module Fescq.CSharp.Idiomatic
+namespace Fescq.CSharp
 
 open System
 open Fescq.Core
@@ -10,20 +10,20 @@ type Storage private () =
    static member GetEvents (eventStore:IEventStore, aggId:Guid) =
       eventStore.GetEvents aggId
       |> function
-         | Ok events -> struct (Some events, None)
-         | Error msg -> struct (None, Some msg)
+         | Ok events -> struct (events |> List.toSeq, "")
+         | Error msg -> struct ([] |> List.toSeq, msg)
 
    static member AddEvent (eventStore:IEventStore, event:Event) =
       eventStore.AddEvent event
       |> function
-         | Ok _ -> struct (Some 1, None)
-         | Error msg -> struct (None, Some msg)
+         | Ok _ -> struct (true, "")
+         | Error msg -> struct (false, msg)
 
    static member Save (eventStore:IEventStore) =
       eventStore.Save ()
       |> function
-         | Ok ok -> struct (Some ok, None)
-         | Error msg -> struct (None, Some msg)
+         | Ok ok -> struct (true, "")
+         | Error msg -> struct (false, msg)
 
 
 [<AbstractClass; Sealed>]

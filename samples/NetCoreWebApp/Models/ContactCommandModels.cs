@@ -3,6 +3,17 @@ using LanguageExt;
 
 namespace NetCoreWebApp.Models.ContactCommandModels
 {
+   public class ErrorResult
+   {
+      public string Error { get; set; }
+   }
+
+   public class AggregateFetched<Tentity>
+   {
+      public Fescq.Core.AggregateKey Key { get; set; }
+      public Tentity Entity { get; set; }
+   }
+
    public class CreateContact
    {
       public string Given { get; set; }

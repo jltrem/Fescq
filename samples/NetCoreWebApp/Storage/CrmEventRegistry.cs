@@ -2,7 +2,7 @@
 using LanguageExt;
 using static LanguageExt.Prelude;
 using static Fescq.Core;
-using ES = Fescq.CSharp.Idiomatic;
+using ES = Fescq.CSharp;
 
 namespace NetCoreWebApp.Storage
 {

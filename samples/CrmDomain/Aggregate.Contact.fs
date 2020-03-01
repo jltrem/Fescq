@@ -155,7 +155,7 @@ let private applyContactEvent =
    Fescq.Aggregate.makeApplyFunc create update
 
 
-module Handle =
+module private Handle =
 
    let aggId (command:Fescq.Command.ICommand) =
       command.AggregateId
@@ -184,7 +184,7 @@ module Handle =
          |> function 
             | Some cmd ->
                match cmd with 
-               | Create cmd -> ContactCreated(cmd.Name) :> IEventData, cmd |> aggId
+               | Create _ -> failwith "'create' command provided for an update"
                | Rename cmd -> ContactRenamed(cmd.Name) :> IEventData, cmd |> aggId
                | AddPhone cmd -> ContactPhoneAdded(cmd.DetailId, cmd.Phone) :> IEventData, cmd |> aggId
                | UpdatePhone cmd -> ContactPhoneUpdated(cmd.DetailId, cmd.Phone) :> IEventData, cmd |> aggId
@@ -204,15 +204,8 @@ module Handle =
       with
          ex -> Error ex.Message
 
-   module CSharp = 
-   
-      let Update utcNow metaData command aggregate =
-         update utcNow metaData command aggregate
-         |> function
-            | Ok agg -> struct (Some struct (fst agg, snd agg), None)
-            | Error msg -> struct (None, Some msg)
 
-module Storage =
+module private Storage =
 
    let private factory history = 
       try
@@ -231,25 +224,29 @@ module Storage =
       :> IRepository<Contact>
       |> fun x -> x.LoadExpectedVersion(aggId, factory, expectedVersion)
 
-
    let save (store:IEventStore) (update:Agg<Contact> * Event list) =
 
       Repository<Contact> store
       :> IRepository<Contact>
       |> fun x -> x.Save(fst update, snd update)
 
-   module CSharp = 
-      
-      let Load (store:IEventStore, aggId:Guid) =
-         load store aggId
-         |> function
-            | Ok agg -> struct (Some agg, None)
-            | Error msg -> struct (None, Some msg)
 
+module Workflow =
 
-      let LoadExpectedVersion (store:IEventStore, aggId:Guid, expectedVersion:int) =
-         loadExpectedVersion store aggId expectedVersion
-         |> function
-            | Ok agg -> struct (Some agg, None)
-            | Error msg -> struct (None, Some msg)
+   let create (getUtcNow:unit->DateTimeOffset) (store:IEventStore) (metaData:string) (cmd:CreateContact) =
+      Handle.create (getUtcNow()) metaData cmd
+      |> fun (contact, events) ->
+            store.AddEvent events.[0]
+            |> Result.bind (fun _ -> store.Save())
+            |> Result.bind (fun _ -> Ok contact)
 
+   // TODO: make this accept an UpdateContact DU for the cmd
+   let update (getUtcNow:unit->DateTimeOffset) (store:IEventStore) (aggId:Guid) (metaData:string) (cmd:Fescq.Command.UpdateCommand) =
+      Storage.loadExpectedVersion store aggId cmd.OriginalVersion
+      |> Result.bind (fun loaded -> Handle.update (getUtcNow()) metaData cmd loaded)
+      |> Result.bind (fun updated -> Storage.save store updated)
+
+   let load (store:IEventStore) (aggId:Guid) =
+      Storage.load store aggId
+
+   // TODO: load aggregate at particular version

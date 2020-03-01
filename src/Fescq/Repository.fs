@@ -7,10 +7,12 @@ type IRepository<'t> =
 
    abstract member Save : Agg<'t> * Event list -> Result<Agg<'t>, string>
 
-   /// input: aggregate ID * factory * expectedVersion
+   /// input: aggregate ID * factory
    /// output: aggregate
    abstract member Load : Guid * (Event list -> Result<Agg<'t>, string>) -> Result<Agg<'t>, string>
 
+   /// input: aggregate ID * factory * expectedVersion
+   /// output: aggregate
    abstract member LoadExpectedVersion : Guid * (Event list -> Result<Agg<'t>, string>) * int -> Result<Agg<'t>, string>
 
 
