@@ -56,7 +56,7 @@ type ApplyAction<'entity> =
 | Create of Event
 | Update of EntityState<'entity> * Event
 
-type ApplyEvent<'entity> = ApplyAction<'entity> -> Result<EntityState<'entity>, string>
+type ApplyEvent<'entity> = ApplyAction<'entity> -> EntityState<'entity>
 
 type RegisteredEvents = {
    RevisionTypeMap: Map<string, Type>

@@ -94,62 +94,60 @@ type ContactPhoneUpdated (phoneId:Guid, phone:PhoneNumber) =
    member val PhoneId = phoneId
    member val Phone = phone
 
-type ContactEvent = 
+type ContactCreatedEvent =
    | Created of ContactCreated
+
+type ContactUpdatedEvent =
    | Renamed of ContactRenamed
    | PhoneAdded of ContactPhoneAdded
    | PhoneUpdated of ContactPhoneUpdated
 
-
-let validateEventData (eventData:IEventData) =
+let asContactCreated (eventData:IEventData) =
    match eventData with 
-   | :? ContactCreated -> eventData :?> ContactCreated |> ContactEvent.Created
-   | :? ContactRenamed -> eventData :?> ContactRenamed |> ContactEvent.Renamed
-   | :? ContactPhoneAdded -> eventData :?> ContactPhoneAdded |> ContactEvent.PhoneAdded
-   | :? ContactPhoneUpdated -> eventData :?> ContactPhoneUpdated |> ContactEvent.PhoneUpdated
+   | :? ContactCreated -> eventData :?> ContactCreated |> ContactCreatedEvent.Created
+   | _ -> failwith "unsupported type for ContactCreatedEvent"
+
+let asContactUpdated (eventData:IEventData) =
+   match eventData with
+   | :? ContactRenamed -> eventData :?> ContactRenamed |> ContactUpdatedEvent.Renamed 
+   | :? ContactPhoneAdded -> eventData :?> ContactPhoneAdded |> ContactUpdatedEvent.PhoneAdded
+   | :? ContactPhoneUpdated -> eventData :?> ContactPhoneUpdated |> ContactUpdatedEvent.PhoneUpdated
    | _ -> failwith "unsupported event type"
-
-
 
 let private applyContactEvent =
 
    let create (e:Event) =
-      match validateEventData e.EventData with
-      | ContactEvent.Created data ->
+      
+      match asContactCreated e.EventData with
+      | ContactCreatedEvent.Created data ->
          { Name = data.Name
            Phones = []|> Map }
-         |> fun contact -> Ok (EntityState.create contact)
-      | _ -> (sprintf "unexpected event for create: %A" e.EventData) |> Error
+      |> fun contact -> EntityState.create contact
 
 
    let update (state:EntityState<Contact>) (e:Event) =
 
       let prev = state.Entity
 
-      let update = 
-         match validateEventData e.EventData with    
+      let updated =
+         match asContactUpdated e.EventData with    
 
-         | ContactEvent.Created _ ->
-            Error "update called with created event"
+         | ContactUpdatedEvent.Renamed data -> 
+            { prev with Name = data.Name }
 
-         | ContactEvent.Renamed data -> 
-            Ok { prev with Name = data.Name }
-
-         | ContactEvent.PhoneAdded data -> 
+         | ContactUpdatedEvent.PhoneAdded data -> 
             if prev.Phones.ContainsKey(data.PhoneId) then
-               Error "ContactPhoneAdded: id already exists"
+               failwith "ContactUpdatedEvent.PhoneAdded: id already exists"
             else
-               Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+               { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
 
-         | ContactEvent.PhoneUpdated data -> 
+         | ContactUpdatedEvent.PhoneUpdated data -> 
             if not(prev.Phones.ContainsKey(data.PhoneId)) then
-               Error "ContactPhoneUpdated: id does not exist"
+               failwith "ContactUpdatedEvent.PhoneUpdated: id does not exist"
             else 
-               Ok { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+               { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
 
-      match update with
-      | Ok contact -> Ok (EntityState.update contact e)
-      | Error err -> Error err
+      EntityState.update updated e
 
 
    Fescq.Aggregate.makeApplyFunc create update

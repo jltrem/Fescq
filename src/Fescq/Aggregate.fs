@@ -27,15 +27,12 @@ let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Eve
       |> List.last
       |> fun x -> x.AggregateKey
 
-   let folder (state:Result<EntityState<'entity>, string> option) (event:Event) =
+   let folder (state:EntityState<'entity> option) (event:Event) =
 
       let newState = 
          match state with
          | None -> event |> Create |> apply 
-         | Some result -> 
-            match result with
-            | Ok x -> (x, event) |> Update |> apply
-            | Error _ -> result
+         | Some prev -> (prev, event) |> Update |> apply
 
       newState |> Some      
       
@@ -44,13 +41,10 @@ let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Eve
    |> List.fold folder None
    |> function
       | None -> failwith "unexpected failure during create (None)"
-      | Some result ->
-         match result with
-         | Error err -> failwith err
-         | Ok state -> 
-            { Key = key
-              Entity = state.Entity
-              History = events }
+      | Some state ->
+         { Key = key
+           Entity = state.Entity
+           History = events }
       |> fun agg -> (agg, future)
 
 
