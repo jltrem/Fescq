@@ -17,7 +17,7 @@ type ContactWorkflow private () =
    static member Update (getUtcNow:System.Func<DateTimeOffset>, store:EventStore, aggId:Guid, metaData:string, cmd:Fescq.Command.UpdateCommand) =
       Contact.Workflow.update (fun () -> getUtcNow.Invoke()) store aggId metaData cmd
       |> function
-         | Ok agg -> agg
+         | Ok x -> x
          | Error msg -> failwith msg
 
    static member Load (store:EventStore, aggId:Guid) =

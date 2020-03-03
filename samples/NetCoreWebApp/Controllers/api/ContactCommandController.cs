@@ -78,9 +78,13 @@ namespace NetCoreWebApp.Controllers.api
       private async Task<ActionResult> UpdateAsync(Guid aggregateId, Fescq.Command.UpdateCommand cmd) =>
          await Task.Run(() =>
 
-            Try(() => ContactWorkflow.Update(() => TimestampNow, _eventStore, aggregateId, "", cmd))
+            Try(() =>
+            {
+               ContactWorkflow.Update(() => TimestampNow, _eventStore, aggregateId, "", cmd);
+               return Unit.Default;
+            })
             .Match(
-               Succ: result => Ok(),
+               Succ: _ => Ok(),
                Fail: ex => ErrorResultAsBadRequest(ex))
          );
 

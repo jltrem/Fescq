@@ -2,7 +2,6 @@ module CrmDomain.Aggregate.Contact
 
 open System
 open Fescq.Core
-open Fescq.Repository
 open CrmDomain
 
 type Contact = {
@@ -216,20 +215,16 @@ module private Storage =
          ex -> Error ex.Message
    
    let load (store:EventStore) (aggId:Guid) = 
-      Repository<Contact> store
-      :> IRepository<Contact>
-      |> fun x -> x.Load(aggId, factory)
+      Fescq.Repository.create<Contact> store
+      |> fun x -> x.Load aggId factory
 
    let loadExpectedVersion (store:EventStore) (aggId:Guid) (expectedVersion:int) = 
-      Repository<Contact> store
-      :> IRepository<Contact>
-      |> fun x -> x.LoadExpectedVersion(aggId, factory, expectedVersion)
+      Fescq.Repository.create<Contact> store
+      |> fun x -> x.LoadExpectedVersion aggId factory expectedVersion
 
    let save (store:EventStore) (update:Agg<Contact> * Event list) =
-
-      Repository<Contact> store
-      :> IRepository<Contact>
-      |> fun x -> x.Save(fst update, snd update)
+      Fescq.Repository.create<Contact> store
+      |> fun x -> x.Save (fst update) (snd update)
 
 
 module Workflow =

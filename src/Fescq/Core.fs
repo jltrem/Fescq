@@ -68,3 +68,9 @@ type EventStore = {
    AddEvent: Event -> Result<unit, string>
    Save: unit -> Result<unit, string>
 }
+
+type AggRepository<'t> = {
+   Load : Guid-> (Event list -> Result<Agg<'t>, string>) -> Result<Agg<'t>, string>
+   LoadExpectedVersion : Guid -> (Event list -> Result<Agg<'t>, string>) -> int -> Result<Agg<'t>, string>
+   Save : Agg<'t> -> Event list -> Result<unit, string>
+}

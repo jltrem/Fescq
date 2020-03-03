@@ -46,7 +46,7 @@ let create (registry:RegisteredEvents) (getEvents:DtoTypeProvider -> Guid -> seq
          ex -> Error ex.Message
 
 
-   { EventStore.Registry = registry
+   { Registry = registry
      GetEvents = getEvents
      AddEvent = addEvent
      Save = save }
