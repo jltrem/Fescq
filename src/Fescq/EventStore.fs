@@ -11,10 +11,11 @@ type DtoTypeProvider = string -> int -> Type option
 // event -> (event name, event version) -> dto type -> unit
 type EventAppender = Event -> struct (string * int) -> Type -> unit
 
-let create (registry:RegisteredEvents) (dtoTypeProvider:DtoTypeProvider) (getEvents:DtoTypeProvider -> Guid -> seq<Event>) (addEvent:EventAppender) (save:unit -> unit) =
+let create (registry:RegisteredEvents) (getEvents:DtoTypeProvider -> Guid -> seq<Event>) (addEvent:EventAppender) (save:unit -> unit) =
 
    let getEvents aggregateId : Result<Event list, string> =
       try
+         let dtoTypeProvider = fun name version -> eventType registry name version
          getEvents dtoTypeProvider aggregateId
          |> Seq.toList |> Ok
       with

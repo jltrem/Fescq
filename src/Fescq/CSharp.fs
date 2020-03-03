@@ -2,7 +2,6 @@ namespace Fescq.CSharp
 
 open System
 open Fescq.Core
-open Fescq.EventRegistry
 
 type DtoTypeProvider = System.Func<string, int, Type>
 type GetEvents = System.Func<DtoTypeProvider, Guid, seq<Event>>
@@ -13,47 +12,25 @@ type Storage private () =
 
    static member CreateEventStore (registry:RegisteredEvents, getEvents:GetEvents, addEvent:AddEvent, save:Action) =
 
-      let wrappedGetEvent aggregateId : Result<Event list, string> =
-         try
-            let dtoTypeProvider = Func<string, int, Type>(fun name version ->
-               eventType registry name version
-               |> function
-                  | Some x -> x
-                  | None _ -> null)
+      let wrappedGetEvent dtoTypeProvider aggregateId =
 
-            getEvents.Invoke(dtoTypeProvider, aggregateId)
-            |> Seq.toList |> Ok
-         with
-            ex -> Error ex.Message
-
-      
-      let wrappedAddEvent e : Result<unit, string> =
-         try
-            let dtoType = e.EventData.GetType()
-
-            Fescq.EventRegistry.eventRevision registry dtoType
+         let csharpDtoTypeProvider = Func<string, int, Type>(fun name version ->
+            dtoTypeProvider name version
             |> function
-               | Some revision ->
-                  addEvent.Invoke(e, revision, dtoType)
-                  Ok ()
-               | None ->
-                  sprintf "event not registered for aggregate (Id=%A, Version=%d)" e.AggregateKey.Id e.AggregateKey.Version
-                  |> Error
+               | Some x -> x
+               | None _ -> null)
 
-         with
-            ex -> Error ex.Message
+         getEvents.Invoke(csharpDtoTypeProvider, aggregateId)
 
-      let wrappedSave () : Result<unit, string> =
-         try
-            save.Invoke()
-            Ok ()
-         with
-            ex -> Error ex.Message
+      let wrappedAddEvent e revision dtoType =
+         addEvent.Invoke(e, revision, dtoType)
+         ()
+      
+      let wrappedSave () =
+         save.Invoke()
+         ()
 
-      { EventStore.Registry = registry
-        GetEvents = wrappedGetEvent
-        AddEvent = wrappedAddEvent
-        Save = wrappedSave }
+      Fescq.EventStore.create registry wrappedGetEvent wrappedAddEvent wrappedSave
 
 
 [<AbstractClass; Sealed>]
