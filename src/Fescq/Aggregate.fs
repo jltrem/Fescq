@@ -30,24 +30,18 @@ let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Eve
       |> List.last
       |> fun x -> x.AggregateKey
 
-   let folder (state:EntityState<'entity> option) (event:Event) =
-
-      let newState = 
-         match state with
-         | None -> event |> Create |> apply 
-         | Some prev -> (prev, event) |> Update |> apply
-
-      newState |> Some      
-      
+   let projection = {
+      Init = events |> List.head |> Create |> apply
+      Update = fun prev event -> (prev, event) |> ApplyAction.Update |> apply
+   }
 
    events
-   |> List.fold folder None
-   |> function
-      | None -> failwith "unexpected failure during create (None)"
-      | Some state ->
-         { Key = key
-           Entity = state.Entity
-           History = events }
+   |> List.tail
+   |> List.fold projection.Update projection.Init
+   |> fun state ->
+      { Key = key
+        Entity = state.Entity
+        History = events }
 
 
 let createWithFirstEvent<'entity> (apply:ApplyEvent<'entity>) (first:Event) =

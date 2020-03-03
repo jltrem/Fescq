@@ -62,3 +62,8 @@ type RegisteredEvents = {
    RevisionTypeMap: Map<string, Type>
    TypeRevisionMap: Map<string, struct (string*int)>
 }
+
+type Projection<'state, 'event> = {
+   Init: 'state
+   Update: 'state -> 'event -> 'state
+}
