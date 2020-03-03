@@ -31,12 +31,6 @@ type Agg<'entity> = {
    History: Event list
 }
 
-type IEventStore =
-   abstract member GetEvents : Guid -> Result<Event list, string>
-   abstract member AddEvent : Event -> Result<unit, string>
-   abstract member Save : unit -> Result<unit, string>
-
-
 type EventTypeInfo = {
    Name: string
    Version: int
@@ -68,3 +62,9 @@ type Projection<'state, 'event> = {
    Update: 'state -> 'event -> 'state
 }
 
+type EventStore = {
+   Registry: RegisteredEvents
+   GetEvents: Guid -> Result<Event list, string>
+   AddEvent: Event -> Result<unit, string>
+   Save: unit -> Result<unit, string>
+}

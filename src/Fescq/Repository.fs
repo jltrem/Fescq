@@ -2,6 +2,7 @@ module Fescq.Repository
 
 open System
 open Core
+open EventStore
 
 type IRepository<'t> =
 
@@ -16,7 +17,7 @@ type IRepository<'t> =
    abstract member LoadExpectedVersion : Guid * (Event list -> Result<Agg<'t>, string>) * int -> Result<Agg<'t>, string>
 
 
-type Repository<'t> (storage:IEventStore) =
+type Repository<'t> (storage:EventStore) =
 
    let load (aggregateId:Guid) (factory:(Event list -> Result<Agg<'t>, string>)) =
       aggregateId

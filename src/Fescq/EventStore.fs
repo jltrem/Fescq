@@ -1,44 +1,51 @@
 module Fescq.EventStore
 
 open System
-open Fescq.EventRegistry
 open Core
+open EventRegistry
 
-type DtoTypeProvider = System.Func<string, int, Type option>
-type GetEvents = System.Func<DtoTypeProvider, Guid, seq<Event>>
-type AddEvent = System.Action<Event, struct (string * int), Type>
 
-type EventStore (registry:RegisteredEvents, getEvents:GetEvents, addEvent:AddEvent, save:Action) =
-   interface IEventStore with
+/// event name -> event version -> maybe type
+type DtoTypeProvider = string -> int -> Type option
 
-      member x.GetEvents aggregateId : Result<Event list, string> =
-         try
-            let dtoTypeProvider = Func<string, int, Type option>(fun name version -> eventType registry name version)
-            getEvents.Invoke(dtoTypeProvider, aggregateId)
-            |> Seq.toList |> Ok
-         with
-            ex -> Error ex.Message
+// event -> (event name, event version) -> dto type -> unit
+type EventAppender = Event -> struct (string * int) -> Type -> unit
 
-      member x.AddEvent e : Result<unit, string> =
-         try
-            let dtoType = e.EventData.GetType()
+let create (registry:RegisteredEvents) (dtoTypeProvider:DtoTypeProvider) (getEvents:DtoTypeProvider -> Guid -> seq<Event>) (addEvent:EventAppender) (save:unit -> unit) =
 
-            eventRevision registry dtoType
-            |> function
-               | Some revision ->
-                  addEvent.Invoke(e, revision, dtoType)
-                  Ok ()
-               | None ->
-                  sprintf "event not registered for aggregate (Id=%A, Version=%d)" e.AggregateKey.Id e.AggregateKey.Version
-                  |> Error
+   let getEvents aggregateId : Result<Event list, string> =
+      try
+         getEvents dtoTypeProvider aggregateId
+         |> Seq.toList |> Ok
+      with
+         ex -> Error ex.Message
 
-         with
-            ex -> Error ex.Message
+   
+   let addEvent e : Result<unit, string> =
+      try
+         let dtoType = e.EventData.GetType()
 
-      member x.Save () : Result<unit, string> =
-         try
-            save.Invoke()
-            Ok ()
-         with
-            ex -> Error ex.Message
+         eventRevision registry dtoType
+         |> function
+            | Some revision ->
+               addEvent e revision dtoType
+               Ok ()
+            | None ->
+               sprintf "event not registered for aggregate (Id=%A, Version=%d)" e.AggregateKey.Id e.AggregateKey.Version
+               |> Error
 
+      with
+         ex -> Error ex.Message
+
+
+   let save () : Result<unit, string> =
+      try
+         save() |> Ok         
+      with
+         ex -> Error ex.Message
+
+
+   { EventStore.Registry = registry
+     GetEvents = getEvents
+     AddEvent = addEvent
+     Save = save }

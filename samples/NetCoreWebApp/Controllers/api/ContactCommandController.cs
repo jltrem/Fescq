@@ -17,7 +17,7 @@ namespace NetCoreWebApp.Controllers.api
    [ApiController]
    public class ContactCommandController : ControllerBase
    {
-      private readonly IEventStore _eventStore;
+      private readonly EventStore _eventStore;
 
       public ContactCommandController(Storage.CrmEventStoreProvider provider)
       {

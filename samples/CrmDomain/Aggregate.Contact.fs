@@ -215,17 +215,17 @@ module private Storage =
       with 
          ex -> Error ex.Message
    
-   let load (store:IEventStore) (aggId:Guid) = 
+   let load (store:EventStore) (aggId:Guid) = 
       Repository<Contact> store
       :> IRepository<Contact>
       |> fun x -> x.Load(aggId, factory)
 
-   let loadExpectedVersion (store:IEventStore) (aggId:Guid) (expectedVersion:int) = 
+   let loadExpectedVersion (store:EventStore) (aggId:Guid) (expectedVersion:int) = 
       Repository<Contact> store
       :> IRepository<Contact>
       |> fun x -> x.LoadExpectedVersion(aggId, factory, expectedVersion)
 
-   let save (store:IEventStore) (update:Agg<Contact> * Event list) =
+   let save (store:EventStore) (update:Agg<Contact> * Event list) =
 
       Repository<Contact> store
       :> IRepository<Contact>
@@ -234,7 +234,7 @@ module private Storage =
 
 module Workflow =
 
-   let create (getUtcNow:unit->DateTimeOffset) (store:IEventStore) (metaData:string) (cmd:CreateContact) =
+   let create (getUtcNow:unit->DateTimeOffset) (store:EventStore) (metaData:string) (cmd:CreateContact) =
       Handle.create (getUtcNow()) metaData cmd
       |> fun (contact, first) ->
             store.AddEvent first
@@ -242,12 +242,12 @@ module Workflow =
             |> Result.bind (fun _ -> Ok contact)
 
    // TODO: make this accept an UpdateContact DU for the cmd
-   let update (getUtcNow:unit->DateTimeOffset) (store:IEventStore) (aggId:Guid) (metaData:string) (cmd:Fescq.Command.UpdateCommand) =
+   let update (getUtcNow:unit->DateTimeOffset) (store:EventStore) (aggId:Guid) (metaData:string) (cmd:Fescq.Command.UpdateCommand) =
       Storage.loadExpectedVersion store aggId cmd.OriginalVersion
       |> Result.bind (fun loaded -> Handle.update (getUtcNow()) metaData cmd loaded)
       |> Result.bind (fun updated -> Storage.save store (fst updated, [snd updated]))
 
-   let load (store:IEventStore) (aggId:Guid) =
+   let load (store:EventStore) (aggId:Guid) =
       Storage.load store aggId
 
    // TODO: load aggregate at particular version
