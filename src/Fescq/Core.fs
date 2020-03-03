@@ -67,3 +67,4 @@ type Projection<'state, 'event> = {
    Init: 'state
    Update: 'state -> 'event -> 'state
 }
+

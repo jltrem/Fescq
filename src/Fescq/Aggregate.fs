@@ -2,6 +2,8 @@ module Fescq.Aggregate
 
 open Core
 
+type AggregateProjection<'entity> = Projection<EntityState<'entity>, Event>
+
 // TODO: consider how to handle hydrating an aggregate when the event validation rules have changed
 // so that an historical event is now considered invalid.  Is this a real concern?
 
@@ -11,7 +13,7 @@ open Core
 /// Note that historical events should always pass this validation, as they were subjected to it
 /// when they were appended (assuming validation rules have not changed); but the future events must fail
 /// (throw an exception) if they put the aggregate in an invalid state.
-let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Event list) : Agg<'entity> =
+let create<'entity> (projection:AggregateProjection<'entity>) (history:Event list) (future:Event list) : Agg<'entity> =
 
    let events =
       history @ future
@@ -30,11 +32,6 @@ let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Eve
       |> List.last
       |> fun x -> x.AggregateKey
 
-   let projection = {
-      Init = events |> List.head |> Create |> apply
-      Update = fun prev event -> (prev, event) |> ApplyAction.Update |> apply
-   }
-
    events
    |> List.tail
    |> List.fold projection.Update projection.Init
@@ -44,21 +41,23 @@ let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Eve
         History = events }
 
 
-let createWithFirstEvent<'entity> (apply:ApplyEvent<'entity>) (first:Event) =
-   create apply [] [first]
+let createWithFirstEvent<'entity> (projectionFactory: Event -> AggregateProjection<'entity>) first =
+   let projection = projectionFactory first
+   create projection [] [first]
 
 
-let createWithNextEvent<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (next:Event) =
-   create apply history [next]
+let createWithNextEvent<'entity> (projectionFactory: Event -> AggregateProjection<'entity>) history next =
+   let projection = projectionFactory (List.head history)
+   create projection history [next]
 
 
-let createFromHistory<'entity> (apply:ApplyEvent<'entity>) (history:Event list) =
-   create apply history []
+let createFromHistory<'entity> (projectionFactory: Event -> AggregateProjection<'entity>) history =
+   let projection = projectionFactory (List.head history)
+   create projection history []
 
 
-let makeApplyFunc<'entity> create update : ApplyEvent<'entity> =
+let projectionFactory<'entity> create update : Event -> AggregateProjection<'entity> =
+   fun (initial:Event) ->
+      { Init = initial |> create
+        Update = fun state event -> update state event }
 
-   fun (action:ApplyAction<'entity>) ->
-      match action with
-      | Create e -> create e
-      | Update (s, e) -> update s e

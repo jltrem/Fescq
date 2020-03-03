@@ -114,7 +114,7 @@ let asContactUpdated (eventData:IEventData) =
    | :? ContactPhoneUpdated -> eventData :?> ContactPhoneUpdated |> ContactUpdatedEvent.PhoneUpdated
    | _ -> failwith "unsupported event type"
 
-let private applyContactEvent =
+let private contactProjectionFactory =
 
    let create (e:Event) =
       
@@ -150,7 +150,7 @@ let private applyContactEvent =
       EntityState.update updated e
 
 
-   Fescq.Aggregate.makeApplyFunc create update
+   Fescq.Aggregate.projectionFactory create update
 
 
 module private Handle =
@@ -165,14 +165,14 @@ module private Handle =
            Id = aggId command
            Version = 1 }
 
-      let first = 
+      let initial = 
          { AggregateKey = key
            Timestamp = utcNow
            MetaData = metaData
            EventData = ContactCreated(command.Name) }
 
-      Fescq.Aggregate.createWithFirstEvent applyContactEvent first
-      |> fun agg -> (agg, first)
+      Fescq.Aggregate.createWithFirstEvent contactProjectionFactory initial
+      |> fun agg -> (agg, initial)
 
    
    let update utcNow metaData (command:Fescq.Command.ICommand) (aggregate:Agg<Contact>) =
@@ -198,7 +198,7 @@ module private Handle =
                     MetaData = metaData
                     EventData = eventData }
 
-               Fescq.Aggregate.createWithNextEvent applyContactEvent aggregate.History next
+               Fescq.Aggregate.createWithNextEvent contactProjectionFactory aggregate.History next
                |> fun agg -> Ok (agg, next)
             else 
                Error "aggregate and command refer to different ids"
@@ -210,7 +210,7 @@ module private Storage =
 
    let private factory history = 
       try
-         Fescq.Aggregate.createFromHistory<Contact> applyContactEvent history
+         Fescq.Aggregate.createFromHistory<Contact> contactProjectionFactory history
          |> Ok
       with 
          ex -> Error ex.Message
