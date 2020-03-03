@@ -2,13 +2,16 @@ module Fescq.Aggregate
 
 open Core
 
-/// Apply all events with the provided folder function.
-/// This function must validate domain rules so that construction
-/// is successful IFF the state is valid
-/// Returns a tuple (Agg<'entity * Event list)
-/// where the first element is the new aggreate
-/// and the second element is the future events (part of the aggregate but not unpersisted)
-let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Event list)  =
+// TODO: consider how to handle hydrating an aggregate when the event validation rules have changed
+// so that an historical event is now considered invalid.  Is this a real concern?
+
+/// Apply all events with the provided ApplyEvent function.
+/// This function must validate domain rules so that construction is successful IFF the state is valid.
+///
+/// Note that historical events should always pass this validation, as they were subjected to it
+/// when they were appended (assuming validation rules have not changed); but the future events must fail
+/// (throw an exception) if they put the aggregate in an invalid state.
+let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Event list) : Agg<'entity> =
 
    let events =
       history @ future
@@ -45,7 +48,6 @@ let create<'entity> (apply:ApplyEvent<'entity>) (history:Event list) (future:Eve
          { Key = key
            Entity = state.Entity
            History = events }
-      |> fun agg -> (agg, future)
 
 
 let createWithFirstEvent<'entity> (apply:ApplyEvent<'entity>) (first:Event) =

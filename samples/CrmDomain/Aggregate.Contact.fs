@@ -165,13 +165,14 @@ module private Handle =
            Id = aggId command
            Version = 1 }
 
-      { 
-         AggregateKey = key
-         Timestamp = utcNow
-         MetaData = metaData
-         EventData = ContactCreated(command.Name) 
-      }
-      |> Fescq.Aggregate.createWithFirstEvent applyContactEvent
+      let first = 
+         { AggregateKey = key
+           Timestamp = utcNow
+           MetaData = metaData
+           EventData = ContactCreated(command.Name) }
+
+      Fescq.Aggregate.createWithFirstEvent applyContactEvent first
+      |> fun agg -> (agg, first)
 
    
    let update utcNow metaData (command:Fescq.Command.ICommand) (aggregate:Agg<Contact>) =
@@ -191,12 +192,14 @@ module private Handle =
          |> fun (eventData, aggId) ->
             if aggId = aggregate.Key.Id then
 
-               { AggregateKey = { aggregate.Key with Version = aggregate.Key.Version + 1 }
-                 Timestamp = utcNow
-                 MetaData = metaData
-                 EventData = eventData }
-               |> Fescq.Aggregate.createWithNextEvent applyContactEvent aggregate.History 
-               |> Ok
+               let next = 
+                  { AggregateKey = { aggregate.Key with Version = aggregate.Key.Version + 1 }
+                    Timestamp = utcNow
+                    MetaData = metaData
+                    EventData = eventData }
+
+               Fescq.Aggregate.createWithNextEvent applyContactEvent aggregate.History next
+               |> fun agg -> Ok (agg, next)
             else 
                Error "aggregate and command refer to different ids"
       with
@@ -207,8 +210,8 @@ module private Storage =
 
    let private factory history = 
       try
-         let (agg, _) = Fescq.Aggregate.createFromHistory<Contact> applyContactEvent history
-         Ok agg
+         Fescq.Aggregate.createFromHistory<Contact> applyContactEvent history
+         |> Ok
       with 
          ex -> Error ex.Message
    
@@ -233,8 +236,8 @@ module Workflow =
 
    let create (getUtcNow:unit->DateTimeOffset) (store:IEventStore) (metaData:string) (cmd:CreateContact) =
       Handle.create (getUtcNow()) metaData cmd
-      |> fun (contact, events) ->
-            store.AddEvent events.[0]
+      |> fun (contact, first) ->
+            store.AddEvent first
             |> Result.bind (fun _ -> store.Save())
             |> Result.bind (fun _ -> Ok contact)
 
@@ -242,7 +245,7 @@ module Workflow =
    let update (getUtcNow:unit->DateTimeOffset) (store:IEventStore) (aggId:Guid) (metaData:string) (cmd:Fescq.Command.UpdateCommand) =
       Storage.loadExpectedVersion store aggId cmd.OriginalVersion
       |> Result.bind (fun loaded -> Handle.update (getUtcNow()) metaData cmd loaded)
-      |> Result.bind (fun updated -> Storage.save store updated)
+      |> Result.bind (fun updated -> Storage.save store (fst updated, [snd updated]))
 
    let load (store:IEventStore) (aggId:Guid) =
       Storage.load store aggId
