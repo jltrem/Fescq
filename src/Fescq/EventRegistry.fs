@@ -1,17 +1,17 @@
-module Fescq.EventRegistryFuncs
+module Fescq.EventRegistry
 
 open System;
-
 open System.Reflection
+open Core
 
 let private revisionKey name version =
    sprintf "%s-%i" name version
 
-let eventType (registry:EventRegistry) (name:string) (version:int) =
+let eventType (registry:RegisteredEvents) (name:string) (version:int) =
    revisionKey name version
    |> registry.RevisionTypeMap.TryFind
 
-let eventRevision (registry:EventRegistry) (dataType:Type) =
+let eventRevision (registry:RegisteredEvents) (dataType:Type) =
    dataType.AssemblyQualifiedName
    |> registry.TypeRevisionMap.TryFind
 

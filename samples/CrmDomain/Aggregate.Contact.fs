@@ -1,7 +1,7 @@
 module CrmDomain.Aggregate.Contact
 
 open System
-open Fescq
+open Fescq.Core
 open CrmDomain
 
 type Contact = {
@@ -9,6 +9,9 @@ type Contact = {
    Phones: Map<Guid, PhoneNumber> 
 }
 
+(*
+   COMMANDS
+*)
 
 type CreateContact (name:PersonalName) =
    inherit Fescq.Command.CreateAggregateCommand()
@@ -64,6 +67,10 @@ let validateCommand (command:Fescq.Command.ICommand) =
    | _ -> failwith "unexpected command"
 
 
+(*
+   EVENTS
+*)
+
 [<EventData("contact-created", 1)>]
 type ContactCreated (name:PersonalName) = 
    interface IEventData
@@ -86,60 +93,68 @@ type ContactPhoneUpdated (phoneId:Guid, phone:PhoneNumber) =
    member val PhoneId = phoneId
    member val Phone = phone
 
-type ContactEvent = 
+type ContactCreatedEvent =
    | Created of ContactCreated
+
+type ContactUpdatedEvent =
    | Renamed of ContactRenamed
    | PhoneAdded of ContactPhoneAdded
    | PhoneUpdated of ContactPhoneUpdated
 
-
-let validateEventData (eventData:IEventData) =
+let asContactCreated (eventData:IEventData) =
    match eventData with 
-   | :? ContactCreated -> eventData :?> ContactCreated |> ContactEvent.Created
-   | :? ContactRenamed -> eventData :?> ContactRenamed |> ContactEvent.Renamed
-   | :? ContactPhoneAdded -> eventData :?> ContactPhoneAdded |> ContactEvent.PhoneAdded
-   | :? ContactPhoneUpdated -> eventData :?> ContactPhoneUpdated |> ContactEvent.PhoneUpdated
+   | :? ContactCreated -> eventData :?> ContactCreated |> ContactCreatedEvent.Created
+   | _ -> failwith "unsupported type for ContactCreatedEvent"
+
+let asContactUpdated (eventData:IEventData) =
+   match eventData with
+   | :? ContactRenamed -> eventData :?> ContactRenamed |> ContactUpdatedEvent.Renamed 
+   | :? ContactPhoneAdded -> eventData :?> ContactPhoneAdded |> ContactUpdatedEvent.PhoneAdded
+   | :? ContactPhoneUpdated -> eventData :?> ContactPhoneUpdated |> ContactUpdatedEvent.PhoneUpdated
    | _ -> failwith "unsupported event type"
 
+let private contactProjectionFactory =
 
-let apply (state:(int*Contact) option) (e:Event) =
+   let create (e:Event) =
+      
+      match asContactCreated e.EventData with
+      | ContactCreatedEvent.Created data ->
+         { Name = data.Name
+           Phones = []|> Map }
+      |> fun contact -> EntityState.create contact
 
-   let entity () =
-      match state with 
-      | Some (_, value) -> value
-      | None -> failwith "state was None for update"
 
-   let version = 
-      match state with 
-      | Some (value, _) -> value
-      | None -> 1
+   let update (state:EntityState<Contact>) (e:Event) =
 
-   let update = 
-      match validateEventData e.EventData with    
-   
-      | ContactEvent.Created data -> 
-         match state with 
-         | None -> { Name = data.Name; Phones = []|> Map }
-         | Some _ -> failwith "state was Some for create"
+      let prev = state.Entity
 
-      | ContactEvent.Renamed data -> 
-         { entity() with Name = data.Name }
+      let updated =
+         match asContactUpdated e.EventData with    
 
-      | ContactEvent.PhoneAdded data -> 
-         let prev = entity()
-         if prev.Phones.ContainsKey(data.PhoneId) then failwith "ContactPhoneAdded: id already exists"
-         { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+         | ContactUpdatedEvent.Renamed data -> 
+            { prev with Name = data.Name }
 
-      | ContactEvent.PhoneUpdated data -> 
-         let prev = entity()
-         if not(prev.Phones.ContainsKey(data.PhoneId)) then failwith "ContactPhoneUpdated: id does not exist"
-         { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
+         | ContactUpdatedEvent.PhoneAdded data -> 
+            if prev.Phones.ContainsKey(data.PhoneId) then
+               failwith "ContactUpdatedEvent.PhoneAdded: id already exists"
+            else
+               { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
 
-   Some (version, update)
+         | ContactUpdatedEvent.PhoneUpdated data -> 
+            if not(prev.Phones.ContainsKey(data.PhoneId)) then
+               failwith "ContactUpdatedEvent.PhoneUpdated: id does not exist"
+            else 
+               { prev with Phones = prev.Phones.Add(data.PhoneId, data.Phone) }
 
-module Handle =
+      EntityState.update updated e
 
-   let aggId (command:Command.ICommand) =
+
+   Fescq.Aggregate.projectionFactory create update
+
+
+module private Handle =
+
+   let aggId (command:Fescq.Command.ICommand) =
       command.AggregateId
 
    let create utcNow metaData (command:CreateContact) =
@@ -149,13 +164,14 @@ module Handle =
            Id = aggId command
            Version = 1 }
 
-      { 
-         AggregateKey = key
-         Timestamp = utcNow
-         MetaData = metaData
-         EventData = ContactCreated(command.Name) 
-      }
-      |> Aggregate.createWithFirstEvent apply
+      let initial = 
+         { AggregateKey = key
+           Timestamp = utcNow
+           MetaData = metaData
+           EventData = ContactCreated(command.Name) }
+
+      Fescq.Aggregate.createWithFirstEvent contactProjectionFactory initial
+      |> fun agg -> (agg, initial)
 
    
    let update utcNow metaData (command:Fescq.Command.ICommand) (aggregate:Agg<Contact>) =
@@ -166,7 +182,7 @@ module Handle =
          |> function 
             | Some cmd ->
                match cmd with 
-               | Create cmd -> ContactCreated(cmd.Name) :> IEventData, cmd |> aggId
+               | Create _ -> failwith "'create' command provided for an update"
                | Rename cmd -> ContactRenamed(cmd.Name) :> IEventData, cmd |> aggId
                | AddPhone cmd -> ContactPhoneAdded(cmd.DetailId, cmd.Phone) :> IEventData, cmd |> aggId
                | UpdatePhone cmd -> ContactPhoneUpdated(cmd.DetailId, cmd.Phone) :> IEventData, cmd |> aggId
@@ -175,63 +191,58 @@ module Handle =
          |> fun (eventData, aggId) ->
             if aggId = aggregate.Key.Id then
 
-               { AggregateKey = { aggregate.Key with Version = aggregate.Key.Version + 1 }
-                 Timestamp = utcNow
-                 MetaData = metaData
-                 EventData = eventData }
-               |> Aggregate.createWithNextEvent apply aggregate.History 
-               |> Ok
+               let next = 
+                  { AggregateKey = { aggregate.Key with Version = aggregate.Key.Version + 1 }
+                    Timestamp = utcNow
+                    MetaData = metaData
+                    EventData = eventData }
+
+               Fescq.Aggregate.createWithNextEvent contactProjectionFactory aggregate.History next
+               |> fun agg -> Ok (agg, next)
             else 
                Error "aggregate and command refer to different ids"
       with
          ex -> Error ex.Message
 
-   module CSharp = 
-   
-      let Update utcNow metaData command aggregate =
-         update utcNow metaData command aggregate
-         |> function
-            | Ok agg -> struct (Some struct (fst agg, snd agg), None)
-            | Error msg -> struct (None, Some msg)
 
-module Storage =
+module private Storage =
 
    let private factory history = 
       try
-         let (agg, _) = Aggregate.createFromHistory<Contact> apply history
-         Ok agg
+         Fescq.Aggregate.createFromHistory<Contact> contactProjectionFactory history
+         |> Ok
       with 
          ex -> Error ex.Message
    
-   let load (store:IEventStore) (aggId:Guid) = 
-      Repository<Contact> store
-      :> IRepository<Contact>
-      |> fun x -> x.Load(aggId, factory)
+   let load (store:EventStore) (aggId:Guid) = 
+      Fescq.Repository.create<Contact> store
+      |> fun x -> x.Load aggId factory
 
-   let loadExpectedVersion (store:IEventStore) (aggId:Guid) (expectedVersion:int) = 
-      Repository<Contact> store
-      :> IRepository<Contact>
-      |> fun x -> x.LoadExpectedVersion(aggId, factory, expectedVersion)
+   let loadExpectedVersion (store:EventStore) (aggId:Guid) (expectedVersion:int) = 
+      Fescq.Repository.create<Contact> store
+      |> fun x -> x.LoadExpectedVersion aggId factory expectedVersion
 
-
-   let save (store:IEventStore) (update:Agg<Contact> * Event list) =
-
-      Repository<Contact> store
-      :> IRepository<Contact>
-      |> fun x -> x.Save(fst update, snd update)
-
-   module CSharp = 
-      
-      let Load (store:IEventStore, aggId:Guid) =
-         load store aggId
-         |> function
-            | Ok agg -> struct (Some agg, None)
-            | Error msg -> struct (None, Some msg)
+   let save (store:EventStore) (update:Agg<Contact> * Event list) =
+      Fescq.Repository.create<Contact> store
+      |> fun x -> x.Save (fst update) (snd update)
 
 
-      let LoadExpectedVersion (store:IEventStore, aggId:Guid, expectedVersion:int) =
-         loadExpectedVersion store aggId expectedVersion
-         |> function
-            | Ok agg -> struct (Some agg, None)
-            | Error msg -> struct (None, Some msg)
+module Workflow =
 
+   let create (getUtcNow:unit->DateTimeOffset) (store:EventStore) (metaData:string) (cmd:CreateContact) =
+      Handle.create (getUtcNow()) metaData cmd
+      |> fun (contact, first) ->
+            store.AddEvent first
+            |> Result.bind (fun _ -> store.Save())
+            |> Result.bind (fun _ -> Ok contact)
+
+   // TODO: make this accept an UpdateContact DU for the cmd
+   let update (getUtcNow:unit->DateTimeOffset) (store:EventStore) (aggId:Guid) (metaData:string) (cmd:Fescq.Command.UpdateCommand) =
+      Storage.loadExpectedVersion store aggId cmd.OriginalVersion
+      |> Result.bind (fun loaded -> Handle.update (getUtcNow()) metaData cmd loaded)
+      |> Result.bind (fun updated -> Storage.save store (fst updated, [snd updated]))
+
+   let load (store:EventStore) (aggId:Guid) =
+      Storage.load store aggId
+
+   // TODO: load aggregate at particular version

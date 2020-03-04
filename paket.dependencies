@@ -9,8 +9,6 @@ nuget YoloDev.Expecto.TestSdk 0.8.0
 nuget Microsoft.NET.Test.Sdk 15.7.2
 nuget altcover ~> 6
 nuget FSharp.Core 4.7.0
-nuget System.Reactive.Core 4.3.1
-nuget FSharpx.Async 1.14.1
 
 // [ FAKE GROUP ]
 group Build

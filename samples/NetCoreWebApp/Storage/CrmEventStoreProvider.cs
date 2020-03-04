@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using LanguageExt;
 using Newtonsoft.Json;
-using Fescq;
-using Microsoft.FSharp.Core;
-using static LanguageExt.FSharp;
+using LanguageExt;
+using static LanguageExt.Prelude;
+using static Fescq.Core;
+using static Fescq.CSharp.Storage;
 
 
 namespace NetCoreWebApp.Storage
@@ -19,7 +19,7 @@ namespace NetCoreWebApp.Storage
       public CrmEventStoreProvider(AppDbContext db, CrmEventRegistry registry)
       {
          _db = db;
-         EventStore = new EventStore(registry.Registry, GetEvents, AddEvent, Save);
+         EventStore = CreateEventStore(registry.Registry, GetEvents, AddEvent, Save);
       }
 
       private static string SerializeEventDto(IEventData eventData, Type dtoType) =>
@@ -38,14 +38,14 @@ namespace NetCoreWebApp.Storage
          return new Event(info, aggEvent.Timestamp, aggEvent.MetaData, dto);
       }
 
-      private IEnumerable<Event> GetEvents(Func<string, int, FSharpOption<Type>> dtoTypeProvider, Guid aggregateId) =>
+      private IEnumerable<Event> GetEvents(Func<string, int, Type> dtoTypeProvider, Guid aggregateId) =>
          _db.AggregateEvents
             .Where(x => x.RootId == aggregateId)
             .OrderBy(x => x.AggregateVersion)
             .ToList()
             .Bind(x =>
 
-               fs(dtoTypeProvider(x.EventName, x.EventVersion))
+               Optional(dtoTypeProvider(x.EventName, x.EventVersion))
                   .Map(dtoType => DeserializeEventDto(x, dtoType))
             );
 

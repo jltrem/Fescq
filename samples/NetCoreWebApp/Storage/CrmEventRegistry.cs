@@ -1,25 +1,27 @@
 ﻿using System;
 using LanguageExt;
-using static LanguageExt.FSharp;
-using Fescq;
-using static Fescq.EventRegistryFuncs;
+using static LanguageExt.Prelude;
+using static Fescq.Core;
+using ES = Fescq.CSharp;
 
 namespace NetCoreWebApp.Storage
 {
    public class CrmEventRegistry
    {
-      public EventRegistry Registry { get; }
+      public RegisteredEvents Registry { get; }
 
       public CrmEventRegistry()
       {
          var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-         Registry = createForAssemblies(assemblies);
+         Registry = ES.EventRegistry.CreateForAssemblies(assemblies);
       }
 
       public Option<Type> EventType(string name, int version) =>
-         fs(eventType(Registry, name, version));
+         Try(() => ES.EventRegistry.CreateEventType(Registry, name, version))
+         .ToOption();
 
       public Option<(string Name, int Version)> EventRevision(Type dataType) =>
-         fs(eventRevision(Registry, dataType));
+         Try(() => ES.EventRegistry.CreateEventRevision(Registry, dataType))
+         .ToOption();
    }
 }
