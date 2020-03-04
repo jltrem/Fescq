@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- significant refactoring; F# First
+- decrufting; drop .NET Framework target
+
 ## [0.2.2] - 2020-02-23
 
 - added Repository.LoadExpectedVersion
